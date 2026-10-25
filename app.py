@@ -53,6 +53,13 @@ def create_app(test_config: Optional[Dict[str, Any]] = None) -> Flask:
             db_path=app.config["DATABASE_PATH"],
             difficulty=app.config["POW_DIFFICULTY"],
         )
+        # On Vercel, auto-seed realistic demo records if database is fresh
+        if Config.IS_VERCEL:
+            try:
+                import seed
+                seed.seed_demo_data(app.config["DATABASE_PATH"])
+            except Exception:
+                pass
 
     # Database connection per request lifecycle
     def get_current_db() -> sqlite3.Connection:

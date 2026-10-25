@@ -14,14 +14,19 @@ class Config:
     SECRET_KEY = os.environ.get(
         "SECRET_KEY", "gateledger-academic-blockchain-campus-security-key-2026"
     )
-    DATABASE_PATH = os.environ.get("DATABASE_PATH", str(BASE_DIR / "gateledger.db"))
+    
+    # On Vercel serverless environments, root is read-only; use /tmp for SQLite
+    IS_VERCEL = os.environ.get("VERCEL") == "1"
+    DEFAULT_DB_PATH = "/tmp/gateledger.db" if IS_VERCEL else str(BASE_DIR / "gateledger.db")
+    DATABASE_PATH = os.environ.get("DATABASE_PATH", DEFAULT_DB_PATH)
+    
     POW_DIFFICULTY = int(os.environ.get("POW_DIFFICULTY", "2"))
     APP_TIMEZONE = os.environ.get("APP_TIMEZONE", "Asia/Kolkata")
     
     # Session Cookie Security
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
-    SESSION_COOKIE_SECURE = False  # Set to True if deployed behind HTTPS
+    SESSION_COOKIE_SECURE = False  # Allows both HTTP local and HTTPS Vercel
 
     # Default Demo Credentials
     DEFAULT_ADMIN_USER = os.environ.get("DEFAULT_ADMIN_USER", "admin@campus.local")
