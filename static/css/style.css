@@ -260,9 +260,8 @@ body {
   border-radius: var(--radius-md);
   margin-bottom: 0.75rem;
   font-size: 0.92rem;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: block;
+  line-height: 1.5;
   border: 1px solid transparent;
 }
 
@@ -747,5 +746,19 @@ body {
     width: 100%;
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+}
+
+/* Vehicle Detail 2-Column Responsive Layout */
+.vehicle-grid-layout {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 992px) {
+  .vehicle-grid-layout {
+    grid-template-columns: 1fr;
   }
 }

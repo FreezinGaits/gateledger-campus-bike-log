@@ -132,59 +132,61 @@
   </div>
 
 {% else %}
-  <!-- Existing Vehicle Profile & Timeline -->
-  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem;">
+  <!-- Existing Vehicle: 2-Column Responsive Layout -->
+  <div class="vehicle-grid-layout">
     
-    <!-- LEFT COLUMN: Profile Card -->
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Vehicle Profile</h2>
-        {% if vehicle.current_status == 'INSIDE' %}
-          <span class="badge badge-inside">● CURRENTLY INSIDE</span>
-        {% else %}
-          <span class="badge badge-outside">○ CURRENTLY OUTSIDE</span>
-        {% endif %}
-      </div>
+    <!-- LEFT COLUMN: Profile Details & Guard Change Request -->
+    <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+      
+      <!-- 1. Master Profile Card -->
+      <div class="card" style="margin-bottom: 0;">
+        <div class="card-header">
+          <h2 class="card-title">Vehicle Profile</h2>
+          {% if vehicle.current_status == 'INSIDE' %}
+            <span class="badge badge-inside">● CURRENTLY INSIDE</span>
+          {% else %}
+            <span class="badge badge-outside">○ CURRENTLY OUTSIDE</span>
+          {% endif %}
+        </div>
 
-      <div class="card-body">
-        {% if current_user.role == 'admin' %}
-          <!-- ADMINISTRATOR DIRECT EDIT FORM -->
-          <form method="POST" action="{{ url_for('vehicle_edit', vehicle_id=vehicle.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="card-body">
+          {% if current_user.role == 'admin' %}
+            <!-- Admin direct edit form -->
+            <form method="POST" action="{{ url_for('vehicle_edit', vehicle_id=vehicle.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-            <div class="form-group">
-              <label class="form-label">Normalized Registration (Permanent Primary Key)</label>
-              <input 
-                type="text" 
-                class="form-control" 
-                value="{{ vehicle.display_registration }}" 
-                disabled
-                style="background-color: var(--slate-100); font-family: var(--font-mono); font-weight: bold;"
-              >
-            </div>
+              <div class="form-group">
+                <label class="form-label">License Plate (Primary Key)</label>
+                <input 
+                  type="text" 
+                  class="form-control" 
+                  value="{{ vehicle.display_registration }}" 
+                  disabled
+                  style="background-color: var(--slate-100); font-family: var(--font-mono); font-weight: bold;"
+                >
+              </div>
 
-            <div class="form-group">
-              <label for="owner_name" class="form-label">Owner / Primary Rider <span class="req">*</span></label>
-              <input 
-                type="text" 
-                id="owner_name" 
-                name="owner_name" 
-                class="form-control" 
-                value="{{ vehicle.owner_name }}" 
-                required
-              >
-            </div>
+              <div class="form-group">
+                <label for="owner_name" class="form-label">Owner / Rider <span class="req">*</span></label>
+                <input 
+                  type="text" 
+                  id="owner_name" 
+                  name="owner_name" 
+                  class="form-control" 
+                  value="{{ vehicle.owner_name }}" 
+                  required
+                >
+              </div>
 
-            <div class="form-group">
-              <label for="owner_type" class="form-label">Category</label>
-              <select id="owner_type" name="owner_type" class="form-control">
-                <option value="Student" {% if vehicle.owner_type == 'Student' %}selected{% endif %}>Student</option>
-                <option value="Staff" {% if vehicle.owner_type == 'Staff' %}selected{% endif %}>Faculty / Staff</option>
-                <option value="Visitor" {% if vehicle.owner_type == 'Visitor' %}selected{% endif %}>Visitor</option>
-              </select>
-            </div>
+              <div class="form-group">
+                <label for="owner_type" class="form-label">Category</label>
+                <select id="owner_type" name="owner_type" class="form-control">
+                  <option value="Student" {% if vehicle.owner_type == 'Student' %}selected{% endif %}>Student</option>
+                  <option value="Staff" {% if vehicle.owner_type == 'Staff' %}selected{% endif %}>Faculty / Staff</option>
+                  <option value="Visitor" {% if vehicle.owner_type == 'Visitor' %}selected{% endif %}>Visitor</option>
+                </select>
+              </div>
 
-            <div class="form-row">
               <div class="form-group">
                 <label for="campus_id" class="form-label">Campus / Roll ID</label>
                 <input 
@@ -206,248 +208,182 @@
                   value="{{ vehicle.phone or '' }}"
                 >
               </div>
-            </div>
-
-            <div class="form-group">
-              <label for="make_model" class="form-label">Make &amp; Model</label>
-              <input 
-                type="text" 
-                id="make_model" 
-                name="make_model" 
-                class="form-control" 
-                value="{{ vehicle.make_model or '' }}"
-              >
-            </div>
-
-            <div style="margin-top: 1.25rem;">
-              <button type="submit" class="btn btn-primary" style="width: 100%;">
-                Update Profile Information (Admin Override)
-              </button>
-            </div>
-          </form>
-
-        {% else %}
-          <!-- SECURITY GUARD READ-ONLY PROFILE VIEW -->
-          <div class="alert alert-info" style="font-size: 0.82rem; margin-bottom: 1.25rem;">
-            <strong>Security Restriction:</strong> Guards have <strong>read-only</strong> access to vehicle master profiles. To correct typos or errors, submit a <strong>Correction Request</strong> below for Administrator approval.
-          </div>
-
-          <div style="display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.92rem;">
-            <div>
-              <span class="metric-label">Registration Number</span>
-              <div style="font-size: 1.2rem; font-weight: 700; font-family: var(--font-mono);">
-                {{ vehicle.display_registration }}
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div>
-                <span class="metric-label">Registered Owner</span>
-                <div style="font-weight: 600;">{{ vehicle.owner_name }}</div>
-              </div>
-              <div>
-                <span class="metric-label">Category</span>
-                <div><span class="badge badge-category">{{ vehicle.owner_type }}</span></div>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div>
-                <span class="metric-label">Campus / Roll ID</span>
-                <div>{{ vehicle.campus_id or '—' }}</div>
-              </div>
-              <div>
-                <span class="metric-label">Contact Phone</span>
-                <div>{{ vehicle.phone or '—' }}</div>
-              </div>
-            </div>
-
-            <div>
-              <span class="metric-label">Vehicle Make &amp; Model</span>
-              <div>{{ vehicle.make_model or '—' }}</div>
-            </div>
-          </div>
-        {% endif %}
-
-        <div style="margin-top: 1.25rem; font-size: 0.78rem; color: var(--slate-500); padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
-          <strong>Blockchain Integrity Rule:</strong> Modifying current profile details does <em>not</em> alter past passage events. Every historical passage preserves its sealed cryptographic snapshot.
-        </div>
-      </div>
-    </div>
-
-    <!-- RIGHT/SECONDARY COLUMN: Guard Change Request Form (Maker-Checker Workflow) -->
-    {% if current_user.role != 'admin' %}
-      <div class="card" style="border-left: 4px solid var(--teal-600);">
-        <div class="card-header" style="background-color: var(--teal-50);">
-          <div>
-            <h2 class="card-title" style="color: var(--teal-700);">Submit Profile Correction Request</h2>
-            <p style="font-size: 0.78rem; color: var(--slate-600); margin-top: 0.15rem;">
-              Maker-Checker Security: Propose corrections for an Administrator to verify and approve.
-            </p>
-          </div>
-        </div>
-
-        <div class="card-body">
-          <form method="POST" action="{{ url_for('vehicle_request_change', vehicle_id=vehicle.id) }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-            <div class="form-group">
-              <label for="proposed_owner_name" class="form-label">Proposed Owner / Rider Name <span class="req">*</span></label>
-              <input 
-                type="text" 
-                id="proposed_owner_name" 
-                name="proposed_owner_name" 
-                class="form-control" 
-                value="{{ vehicle.owner_name }}" 
-                required
-              >
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label for="proposed_owner_type" class="form-label">Category</label>
-                <select id="proposed_owner_type" name="proposed_owner_type" class="form-control">
-                  <option value="Student" {% if vehicle.owner_type == 'Student' %}selected{% endif %}>Student</option>
-                  <option value="Staff" {% if vehicle.owner_type == 'Staff' %}selected{% endif %}>Faculty / Staff</option>
-                  <option value="Visitor" {% if vehicle.owner_type == 'Visitor' %}selected{% endif %}>Visitor</option>
-                </select>
-              </div>
 
               <div class="form-group">
-                <label for="proposed_campus_id" class="form-label">Campus / Roll ID</label>
+                <label for="make_model" class="form-label">Make &amp; Model</label>
                 <input 
                   type="text" 
-                  id="proposed_campus_id" 
-                  name="proposed_campus_id" 
-                  class="form-control" 
-                  value="{{ vehicle.campus_id or '' }}"
-                >
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label for="proposed_phone" class="form-label">Phone Number</label>
-                <input 
-                  type="text" 
-                  id="proposed_phone" 
-                  name="proposed_phone" 
-                  class="form-control" 
-                  value="{{ vehicle.phone or '' }}"
-                >
-              </div>
-
-              <div class="form-group">
-                <label for="proposed_make_model" class="form-label">Make &amp; Model</label>
-                <input 
-                  type="text" 
-                  id="proposed_make_model" 
-                  name="proposed_make_model" 
+                  id="make_model" 
+                  name="make_model" 
                   class="form-control" 
                   value="{{ vehicle.make_model or '' }}"
                 >
               </div>
+
+              <div style="margin-top: 1.25rem;">
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                  Update Profile Information (Admin)
+                </button>
+              </div>
+            </form>
+
+          {% else %}
+            <!-- Guard Read-Only Profile View -->
+            <div class="alert alert-info" style="font-size: 0.8rem; margin-bottom: 1.25rem; line-height: 1.45;">
+              <strong>Security Policy:</strong> Guards have <strong>read-only</strong> access to master vehicle profiles. To report a typo or changed phone number, use the <strong>Correction Request</strong> form below for Administrator approval.
             </div>
 
-            <div class="form-group">
-              <label for="reason" class="form-label">Reason / Justification for Change <span class="req">*</span></label>
-              <textarea 
-                id="reason" 
-                name="reason" 
-                class="form-control" 
-                rows="2" 
-                placeholder="e.g. Student provided valid ID showing correct spelling; phone number updated by owner" 
-                required
-              ></textarea>
-            </div>
+            <div style="display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.92rem;">
+              <div>
+                <span class="metric-label">Registration Plate</span>
+                <div style="font-size: 1.25rem; font-weight: 800; font-family: var(--font-mono); color: var(--navy-900);">
+                  {{ vehicle.display_registration }}
+                </div>
+              </div>
 
-            <div style="margin-top: 1rem;">
-              <button type="submit" class="btn btn-secondary" style="width: 100%; border-color: var(--teal-600); color: var(--teal-700); font-weight: 700;">
-                Submit Correction Request to Admin
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    {% endif %}
+              <div>
+                <span class="metric-label">Registered Owner</span>
+                <div style="font-weight: 700; font-size: 1.05rem;">{{ vehicle.owner_name }}</div>
+              </div>
 
-    <!-- PENDING / HISTORICAL CHANGE REQUESTS TABLE -->
-    {% if change_requests %}
-      <div class="card" style="grid-column: span 1 / -1;">
-        <div class="card-header">
-          <h2 class="card-title">Profile Modification Requests Audit Log ({{ change_requests | length }})</h2>
-        </div>
-        <div class="card-body" style="padding: 0;">
-          <div class="table-responsive">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Req ID</th>
-                  <th>Submitted By</th>
-                  <th>Proposed Owner Name</th>
-                  <th>Proposed Category</th>
-                  <th>Reason / Justification</th>
-                  <th>Status</th>
-                  <th>Reviewer / Notes</th>
-                  {% if current_user.role == 'admin' %}
-                    <th style="text-align: right;">Admin Action</th>
-                  {% endif %}
-                </tr>
-              </thead>
-              <tbody>
-                {% for req in change_requests %}
-                  <tr>
-                    <td><strong>#{{ req.id }}</strong></td>
-                    <td>{{ req.requester_username }}</td>
-                    <td><strong>{{ req.proposed_owner_name }}</strong></td>
-                    <td><span class="badge badge-category">{{ req.proposed_owner_type }}</span></td>
-                    <td style="max-width: 250px;">{{ req.reason }}</td>
-                    <td>
-                      {% if req.status == 'PENDING' %}
-                        <span class="badge badge-entry" style="background: #fef3c7; color: #92400e; border-color: #fde68a;">PENDING REVIEW</span>
-                      {% elif req.status == 'APPROVED' %}
-                        <span class="badge badge-valid">APPROVED</span>
-                      {% else %}
-                        <span class="badge badge-invalid">REJECTED</span>
-                      {% endif %}
-                    </td>
-                    <td>
-                      {% if req.reviewer_username %}
-                        Reviewed by <strong>{{ req.reviewer_username }}</strong>
-                        {% if req.review_notes %}<br><small style="color: var(--slate-500);">Note: {{ req.review_notes }}</small>{% endif %}
-                      {% else %}
-                        <span style="color: var(--slate-400);">Awaiting Review</span>
-                      {% endif %}
-                    </td>
-                    {% if current_user.role == 'admin' %}
-                      <td style="text-align: right;">
-                        {% if req.status == 'PENDING' %}
-                          <form method="POST" action="{{ url_for('admin_approve_request', request_id=req.id, next=request.path) }}" style="display: inline;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-primary btn-sm">Approve &amp; Apply</button>
-                          </form>
-                          <form method="POST" action="{{ url_for('admin_reject_request', request_id=req.id, next=request.path) }}" style="display: inline; margin-left: 0.25rem;">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-danger btn-sm">Reject</button>
-                          </form>
-                        {% else %}
-                          <span style="font-size: 0.8rem; color: var(--slate-400);">Completed</span>
-                        {% endif %}
-                      </td>
-                    {% endif %}
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+              <div class="form-row">
+                <div>
+                  <span class="metric-label">Category</span>
+                  <div><span class="badge badge-category">{{ vehicle.owner_type }}</span></div>
+                </div>
+                <div>
+                  <span class="metric-label">Campus / Roll ID</span>
+                  <div><strong>{{ vehicle.campus_id or '—' }}</strong></div>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div>
+                  <span class="metric-label">Contact Phone</span>
+                  <div>{{ vehicle.phone or '—' }}</div>
+                </div>
+                <div>
+                  <span class="metric-label">Make &amp; Model</span>
+                  <div>{{ vehicle.make_model or '—' }}</div>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+
+          <div style="margin-top: 1.25rem; font-size: 0.76rem; color: var(--slate-500); padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+            <strong>Blockchain Rule:</strong> Modifying current profile details does not alter historical passage logs. Every past event preserves its original cryptographic snapshot.
           </div>
         </div>
       </div>
-    {% endif %}
 
-    <!-- PASSAGE TIMELINE TABLE -->
-    <div class="card" style="grid-column: span 1 / -1;">
+      <!-- 2. Guard Change Request Card (Maker-Checker Form) -->
+      {% if current_user.role != 'admin' %}
+        <div class="card" style="border-left: 4px solid var(--teal-600); margin-bottom: 0;">
+          <div class="card-header" style="background-color: var(--teal-50);">
+            <div>
+              <h2 class="card-title" style="color: var(--teal-700); font-size: 0.95rem;">
+                Submit Profile Correction Request
+              </h2>
+              <p style="font-size: 0.76rem; color: var(--slate-600); margin-top: 0.15rem;">
+                Propose corrections for an Administrator to verify and approve.
+              </p>
+            </div>
+          </div>
+
+          <div class="card-body">
+            <form method="POST" action="{{ url_for('vehicle_request_change', vehicle_id=vehicle.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+              <div class="form-group">
+                <label for="proposed_owner_name" class="form-label" style="font-size: 0.8rem;">
+                  Proposed Owner Name <span class="req">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  id="proposed_owner_name" 
+                  name="proposed_owner_name" 
+                  class="form-control" 
+                  value="{{ vehicle.owner_name }}" 
+                  required
+                >
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="proposed_owner_type" class="form-label" style="font-size: 0.8rem;">Category</label>
+                  <select id="proposed_owner_type" name="proposed_owner_type" class="form-control" style="font-size: 0.85rem;">
+                    <option value="Student" {% if vehicle.owner_type == 'Student' %}selected{% endif %}>Student</option>
+                    <option value="Staff" {% if vehicle.owner_type == 'Staff' %}selected{% endif %}>Faculty / Staff</option>
+                    <option value="Visitor" {% if vehicle.owner_type == 'Visitor' %}selected{% endif %}>Visitor</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="proposed_campus_id" class="form-label" style="font-size: 0.8rem;">Campus ID</label>
+                  <input 
+                    type="text" 
+                    id="proposed_campus_id" 
+                    name="proposed_campus_id" 
+                    class="form-control" 
+                    value="{{ vehicle.campus_id or '' }}"
+                  >
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label for="proposed_phone" class="form-label" style="font-size: 0.8rem;">Phone</label>
+                  <input 
+                    type="text" 
+                    id="proposed_phone" 
+                    name="proposed_phone" 
+                    class="form-control" 
+                    value="{{ vehicle.phone or '' }}"
+                  >
+                </div>
+
+                <div class="form-group">
+                  <label for="proposed_make_model" class="form-label" style="font-size: 0.8rem;">Make/Model</label>
+                  <input 
+                    type="text" 
+                    id="proposed_make_model" 
+                    name="proposed_make_model" 
+                    class="form-control" 
+                    value="{{ vehicle.make_model or '' }}"
+                  >
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="reason" class="form-label" style="font-size: 0.8rem;">
+                  Reason / Justification <span class="req">*</span>
+                </label>
+                <textarea 
+                  id="reason" 
+                  name="reason" 
+                  class="form-control" 
+                  rows="2" 
+                  placeholder="e.g. Student showed valid physical ID showing spelling correction" 
+                  required
+                ></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-secondary btn-sm" style="width: 100%; border-color: var(--teal-600); color: var(--teal-700); font-weight: 700; padding: 0.5rem;">
+                Submit Correction Request to Admin
+              </button>
+            </form>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT COLUMN: Spacious Passage Timeline Table -->
+    <div class="card" style="margin-bottom: 0;">
       <div class="card-header">
-        <h2 class="card-title">Passage Timeline ({{ history | length }} events)</h2>
+        <div>
+          <h2 class="card-title">Passage Timeline ({{ history | length }} events)</h2>
+          <span style="font-size: 0.78rem; color: var(--slate-500);">Complete verified entry and exit log for this vehicle</span>
+        </div>
         <a href="{{ url_for('new_event', reg=vehicle.registration_number) }}" class="btn btn-primary btn-sm">
           + Log New Passage
         </a>
@@ -460,12 +396,12 @@
               <thead>
                 <tr>
                   <th>Event ID</th>
-                  <th>Event Type</th>
+                  <th>Type</th>
                   <th>Rider Snapshot</th>
                   <th>Gate</th>
-                  <th>Timestamp</th>
-                  <th>Operator</th>
-                  <th>Blockchain Block # &amp; Hash</th>
+                  <th>Passage Time</th>
+                  <th>Guard</th>
+                  <th>Block Hash</th>
                   <th style="text-align: right;">Action</th>
                 </tr>
               </thead>
@@ -517,6 +453,82 @@
         {% endif %}
       </div>
     </div>
+
   </div>
+
+  <!-- BOTTOM FULL-WIDTH ROW: Change Requests Audit Log (if any exist) -->
+  {% if change_requests %}
+    <div class="card" style="margin-top: 1.5rem;">
+      <div class="card-header">
+        <h2 class="card-title">Modification Requests Audit Log ({{ change_requests | length }})</h2>
+        <span style="font-size: 0.78rem; color: var(--slate-500);">Dual-Control Change History</span>
+      </div>
+      <div class="card-body" style="padding: 0;">
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Req ID</th>
+                <th>Submitted By</th>
+                <th>Proposed Owner Name</th>
+                <th>Category</th>
+                <th>Justification</th>
+                <th>Status</th>
+                <th>Reviewer Notes</th>
+                {% if current_user.role == 'admin' %}
+                  <th style="text-align: right;">Admin Action</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for req in change_requests %}
+                <tr>
+                  <td><strong>#{{ req.id }}</strong></td>
+                  <td>{{ req.requester_username }}</td>
+                  <td><strong>{{ req.proposed_owner_name }}</strong></td>
+                  <td><span class="badge badge-category">{{ req.proposed_owner_type }}</span></td>
+                  <td style="max-width: 280px; font-style: italic;">"{{ req.reason }}"</td>
+                  <td>
+                    {% if req.status == 'PENDING' %}
+                      <span class="badge badge-entry" style="background: #fef3c7; color: #92400e; border-color: #fde68a;">PENDING REVIEW</span>
+                    {% elif req.status == 'APPROVED' %}
+                      <span class="badge badge-valid">APPROVED</span>
+                    {% else %}
+                      <span class="badge badge-invalid">REJECTED</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if req.reviewer_username %}
+                      Reviewed by <strong>{{ req.reviewer_username }}</strong>
+                      {% if req.review_notes %}<br><small style="color: var(--slate-500);">{{ req.review_notes }}</small>{% endif %}
+                    {% else %}
+                      <span style="color: var(--slate-400);">Awaiting Admin</span>
+                    {% endif %}
+                  </td>
+                  {% if current_user.role == 'admin' %}
+                    <td style="text-align: right;">
+                      {% if req.status == 'PENDING' %}
+                        <form method="POST" action="{{ url_for('admin_approve_request', request_id=req.id, next=request.path) }}" style="display: inline;">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <button type="submit" class="btn btn-primary btn-sm">Approve</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin_reject_request', request_id=req.id, next=request.path) }}" style="display: inline; margin-left: 0.25rem;">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                        </form>
+                      {% else %}
+                        <span style="font-size: 0.8rem; color: var(--slate-400);">Completed</span>
+                      {% endif %}
+                    </td>
+                  {% endif %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
 {% endif %}
 {% endblock %}

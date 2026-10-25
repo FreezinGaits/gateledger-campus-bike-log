@@ -173,7 +173,60 @@ def seed_demo_data(db_path: str = None) -> None:
     )
     print(f"  [+] Logged ENTRY for {v4['display_registration']} -> Block #{b6['block_index']} ({b6['block_hash'][:12]}...)")
 
-    print("[SUCCESS] Demo data successfully seeded! Initialized 5 vehicles and 6 verified blocks.")
+    # 7. v5 (Arvind Patel) enters Main Gate -> Block 7
+    ev7, b7 = database.log_gate_event_with_block(
+        conn=conn,
+        vehicle_id=v5["id"],
+        rider_name="Arvind Patel",
+        owner_type="Staff",
+        campus_id="ADM-045",
+        event_type="ENTRY",
+        gate_name="Main Gate (Gate 1)",
+        operator_id=admin_id,
+        notes="Administrative office morning arrival.",
+    )
+    print(f"  [+] Logged ENTRY for {v5['display_registration']} -> Block #{b7['block_index']} ({b7['block_hash'][:12]}...)")
+
+    # Vehicle 6: Rahul Sharma (Computer Science Student)
+    v6 = database.create_or_update_vehicle(
+        conn=conn,
+        registration_number="KA05XY1234",
+        owner_name="Rahul Sharma",
+        owner_type="Student",
+        campus_id="CS2024-501",
+        phone="9876543210",
+        make_model="TVS Apache RTR 160 (Black)",
+    )
+
+    # 8. v6 (Rahul Sharma) enters Main Gate -> Block 8
+    ev8, b8 = database.log_gate_event_with_block(
+        conn=conn,
+        vehicle_id=v6["id"],
+        rider_name="Rahul Sharma",
+        owner_type="Student",
+        campus_id="CS2024-501",
+        event_type="ENTRY",
+        gate_name="Main Gate (Gate 1)",
+        operator_id=guard_id,
+        notes="Morning lecture attendance.",
+    )
+    print(f"  [+] Logged ENTRY for {v6['display_registration']} -> Block #{b8['block_index']} ({b8['block_hash'][:12]}...)")
+
+    # 9. v6 (Rahul Sharma) exits Main Gate -> Block 9
+    ev9, b9 = database.log_gate_event_with_block(
+        conn=conn,
+        vehicle_id=v6["id"],
+        rider_name="Rahul Sharma",
+        owner_type="Student",
+        campus_id="CS2024-501",
+        event_type="EXIT",
+        gate_name="Main Gate (Gate 1)",
+        operator_id=guard_id,
+        notes="Departed campus for evening.",
+    )
+    print(f"  [+] Logged EXIT for {v6['display_registration']} -> Block #{b9['block_index']} ({b9['block_hash'][:12]}...)")
+
+    print("[SUCCESS] Demo data successfully seeded! Initialized 6 vehicles and 9 verified blocks.")
     conn.close()
 
 
