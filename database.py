@@ -798,17 +798,17 @@ def get_change_request_by_id(conn: sqlite3.Connection, request_id: int) -> Optio
         """
         SELECT 
             cr.*,
-            v.display_registration,
+            COALESCE(v.display_registration, 'N/A') as display_registration,
             v.owner_name as current_owner_name,
             v.owner_type as current_owner_type,
             v.campus_id as current_campus_id,
             v.phone as current_phone,
             v.make_model as current_make_model,
-            u1.username as requester_username,
+            COALESCE(u1.username, 'Unknown') as requester_username,
             u2.username as reviewer_username
         FROM vehicle_change_requests cr
-        JOIN vehicles v ON cr.vehicle_id = v.id
-        JOIN users u1 ON cr.requested_by_id = u1.id
+        LEFT JOIN vehicles v ON cr.vehicle_id = v.id
+        LEFT JOIN users u1 ON cr.requested_by_id = u1.id
         LEFT JOIN users u2 ON cr.reviewed_by_id = u2.id
         WHERE cr.id = ?
         """,
@@ -832,13 +832,13 @@ def list_change_requests(
         f"""
         SELECT 
             cr.*,
-            v.display_registration,
+            COALESCE(v.display_registration, 'N/A') as display_registration,
             v.owner_name as current_owner_name,
-            u1.username as requester_username,
+            COALESCE(u1.username, 'Unknown') as requester_username,
             u2.username as reviewer_username
         FROM vehicle_change_requests cr
-        JOIN vehicles v ON cr.vehicle_id = v.id
-        JOIN users u1 ON cr.requested_by_id = u1.id
+        LEFT JOIN vehicles v ON cr.vehicle_id = v.id
+        LEFT JOIN users u1 ON cr.requested_by_id = u1.id
         LEFT JOIN users u2 ON cr.reviewed_by_id = u2.id
         {where_clause}
         ORDER BY cr.id DESC
@@ -854,10 +854,10 @@ def get_change_requests_for_vehicle(conn: sqlite3.Connection, vehicle_id: int) -
         """
         SELECT 
             cr.*,
-            u1.username as requester_username,
+            COALESCE(u1.username, 'Unknown') as requester_username,
             u2.username as reviewer_username
         FROM vehicle_change_requests cr
-        JOIN users u1 ON cr.requested_by_id = u1.id
+        LEFT JOIN users u1 ON cr.requested_by_id = u1.id
         LEFT JOIN users u2 ON cr.reviewed_by_id = u2.id
         WHERE cr.vehicle_id = ?
         ORDER BY cr.id DESC
