@@ -116,3 +116,64 @@ def test_cannot_deactivate_last_active_admin(db_conn):
     success, msg = database.toggle_user_active_status(db_conn, admin_id)
     assert success is False
     assert "Cannot deactivate the only remaining active administrator" in msg
+
+
+def test_guard_cannot_directly_edit_vehicle_profile(auth_guard, db_conn):
+    """Security guards must NOT be allowed to directly edit vehicle master profiles."""
+    v = database.create_or_update_vehicle(db_conn, "PB10TEST99", "Original Owner", "Student")
+    resp = auth_guard.post(
+        f"/vehicles/{v['id']}/edit",
+        data={
+            "owner_name": "Forged Name",
+            "csrf_token": "valid-test-csrf-token",
+        },
+        follow_redirects=True,
+    )
+    assert b"Administrator privileges are required" in resp.data
+
+    # Confirm database was NOT modified
+    updated_v = database.get_vehicle_by_id(db_conn, v["id"])
+    assert updated_v["owner_name"] == "Original Owner"
+
+
+def test_guard_can_submit_change_request_and_admin_approve(auth_guard, auth_admin, db_conn):
+    """Guards submit change requests, and Admins can approve and apply them."""
+    v = database.create_or_update_vehicle(db_conn, "PB10REQ01", "Old Name", "Student")
+
+    # 1. Guard submits a correction request
+    resp = auth_guard.post(
+        f"/vehicles/{v['id']}/request-change",
+        data={
+            "proposed_owner_name": "Corrected New Name",
+            "proposed_owner_type": "Student",
+            "proposed_campus_id": "CS-999",
+            "proposed_phone": "9876543210",
+            "proposed_make_model": "Honda Activa",
+            "reason": "Student provided valid college ID showing spelling correction",
+            "csrf_token": "valid-test-csrf-token",
+        },
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+    assert b"Change Request" in resp.data
+    assert b"submitted" in resp.data
+
+    # Profile must STILL have old name (pending approval)
+    assert database.get_vehicle_by_id(db_conn, v["id"])["owner_name"] == "Old Name"
+
+    # 2. Check pending requests
+    pending = database.list_change_requests(db_conn, status_filter="PENDING")
+    assert len(pending) >= 1
+    req_id = pending[0]["id"]
+
+    # 3. Admin approves request
+    appr_resp = auth_admin.post(
+        f"/admin/requests/{req_id}/approve",
+        data={"csrf_token": "valid-test-csrf-token"},
+        follow_redirects=True,
+    )
+    assert appr_resp.status_code == 200
+    assert b"approved and applied" in appr_resp.data
+
+    # Vehicle profile is now updated!
+    assert database.get_vehicle_by_id(db_conn, v["id"])["owner_name"] == "Corrected New Name"

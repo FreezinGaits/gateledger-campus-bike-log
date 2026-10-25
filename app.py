@@ -104,11 +104,17 @@ def create_app(test_config: Optional[Dict[str, Any]] = None) -> Flask:
     def inject_globals():
         conn = get_current_db()
         current_user = auth.get_current_user(conn)
+        pending_requests_count = (
+            database.get_pending_requests_count(conn)
+            if current_user and current_user["role"] == "admin"
+            else 0
+        )
         return {
             "current_user": current_user,
             "csrf_token": auth.get_or_create_csrf_token,
             "app_name": "GateLedger",
             "app_timezone": app.config["APP_TIMEZONE"],
+            "pending_requests_count": pending_requests_count,
         }
 
     # CSRF Protection Hook
@@ -507,16 +513,19 @@ def create_app(test_config: Optional[Dict[str, Any]] = None) -> Flask:
             abort(404, description="Vehicle not found.")
 
         history = database.get_vehicle_event_history(conn, vehicle_id)
+        change_requests = database.get_change_requests_for_vehicle(conn, vehicle_id)
         return render_template(
             "vehicle_detail.html",
             is_new=False,
             vehicle=vehicle,
             history=history,
+            change_requests=change_requests,
         )
 
     @app.route("/vehicles/<int:vehicle_id>/edit", methods=["POST"])
-    @auth.login_required
+    @auth.admin_required
     def vehicle_edit(vehicle_id: int):
+        """Administrator-only direct vehicle profile update."""
         conn = get_current_db()
         vehicle = database.get_vehicle_by_id(conn, vehicle_id)
         if not vehicle:
@@ -542,11 +551,95 @@ def create_app(test_config: Optional[Dict[str, Any]] = None) -> Flask:
                 phone=phone if phone else None,
                 make_model=make_model if make_model else None,
             )
-            flash("Vehicle profile updated successfully. Historical event logs remain immutable.", "success")
+            flash("Vehicle profile updated successfully by Administrator. Historical event logs remain immutable.", "success")
         except Exception as e:
             flash(f"Error updating vehicle: {str(e)}", "danger")
 
         return redirect(url_for("vehicle_detail_view", vehicle_id=vehicle_id))
+
+    @app.route("/vehicles/<int:vehicle_id>/request-change", methods=["POST"])
+    @auth.login_required
+    def vehicle_request_change(vehicle_id: int):
+        """Security Guard submission of a profile correction request (Maker-Checker Workflow)."""
+        conn = get_current_db()
+        vehicle = database.get_vehicle_by_id(conn, vehicle_id)
+        if not vehicle:
+            abort(404, description="Vehicle not found.")
+
+        proposed_name = request.form.get("proposed_owner_name", "").strip()
+        proposed_type = request.form.get("proposed_owner_type", "Student").strip()
+        proposed_campus_id = request.form.get("proposed_campus_id", "").strip()
+        proposed_phone = request.form.get("proposed_phone", "").strip()
+        proposed_make_model = request.form.get("proposed_make_model", "").strip()
+        reason = request.form.get("reason", "").strip()
+
+        if not proposed_name or not reason:
+            flash("Proposed owner name and a clear reason for the change are required.", "danger")
+            return redirect(url_for("vehicle_detail_view", vehicle_id=vehicle_id))
+
+        try:
+            req = database.create_change_request(
+                conn=conn,
+                vehicle_id=vehicle_id,
+                requester_id=session["user_id"],
+                proposed_owner_name=proposed_name,
+                proposed_owner_type=proposed_type,
+                proposed_campus_id=proposed_campus_id,
+                proposed_phone=proposed_phone,
+                proposed_make_model=proposed_make_model,
+                reason=reason,
+            )
+            flash(
+                f"Change Request #{req['id']} submitted to Administrator for verification. "
+                "The current profile remains unchanged until an Administrator reviews and approves it.",
+                "info",
+            )
+        except Exception as e:
+            flash(f"Error submitting change request: {str(e)}", "danger")
+
+        return redirect(url_for("vehicle_detail_view", vehicle_id=vehicle_id))
+
+    @app.route("/admin/requests")
+    @auth.admin_required
+    def admin_change_requests():
+        """Administrator dashboard to inspect, approve, or reject guard profile modification requests."""
+        conn = get_current_db()
+        status_filter = request.args.get("status", "").strip()
+        requests_list = database.list_change_requests(conn, status_filter=status_filter)
+        return render_template(
+            "admin_requests.html",
+            requests=requests_list,
+            status_filter=status_filter,
+        )
+
+    @app.route("/admin/requests/<int:request_id>/approve", methods=["POST"])
+    @auth.admin_required
+    def admin_approve_request(request_id: int):
+        conn = get_current_db()
+        success, msg = database.approve_change_request(conn, request_id, session["user_id"])
+        if success:
+            flash(msg, "success")
+        else:
+            flash(msg, "danger")
+        next_page = request.args.get("next")
+        if next_page:
+            return redirect(next_page)
+        return redirect(url_for("admin_change_requests"))
+
+    @app.route("/admin/requests/<int:request_id>/reject", methods=["POST"])
+    @auth.admin_required
+    def admin_reject_request(request_id: int):
+        conn = get_current_db()
+        notes = request.form.get("review_notes", "").strip()
+        success, msg = database.reject_change_request(conn, request_id, session["user_id"], notes)
+        if success:
+            flash(msg, "warning")
+        else:
+            flash(msg, "danger")
+        next_page = request.args.get("next")
+        if next_page:
+            return redirect(next_page)
+        return redirect(url_for("admin_change_requests"))
 
     # -------------------------------------------------------------
     # Blockchain Explorer & Tamper Simulation

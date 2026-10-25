@@ -99,6 +99,28 @@ def init_db(db_path: Optional[str] = None, difficulty: Optional[int] = None) -> 
         """
     )
 
+    # Table E: vehicle_change_requests (Dual-Control / Maker-Checker Security Workflow)
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vehicle_change_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            vehicle_id INTEGER NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+            requested_by_id INTEGER NOT NULL REFERENCES users(id),
+            proposed_owner_name TEXT NOT NULL,
+            proposed_owner_type TEXT NOT NULL CHECK(proposed_owner_type IN ('Student', 'Staff', 'Visitor')),
+            proposed_campus_id TEXT,
+            proposed_phone TEXT,
+            proposed_make_model TEXT,
+            reason TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING', 'APPROVED', 'REJECTED')),
+            reviewed_by_id INTEGER REFERENCES users(id),
+            review_notes TEXT,
+            created_at TEXT NOT NULL,
+            reviewed_at TEXT
+        );
+        """
+    )
+
     # Performance and query indexes
     cur.execute("CREATE INDEX IF NOT EXISTS idx_vehicles_reg ON vehicles(registration_number);")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_gate_events_vehicle ON gate_events(vehicle_id);")
@@ -107,6 +129,8 @@ def init_db(db_path: Optional[str] = None, difficulty: Optional[int] = None) -> 
     cur.execute("CREATE INDEX IF NOT EXISTS idx_blockchain_index ON blockchain_blocks(block_index);")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_blockchain_hash ON blockchain_blocks(block_hash);")
     cur.execute("CREATE INDEX IF NOT EXISTS idx_blockchain_event ON blockchain_blocks(event_id);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_change_requests_vehicle ON vehicle_change_requests(vehicle_id);")
+    cur.execute("CREATE INDEX IF NOT EXISTS idx_change_requests_status ON vehicle_change_requests(status);")
 
     conn.commit()
 
@@ -718,3 +742,206 @@ def toggle_user_active_status(conn: sqlite3.Connection, user_id: int) -> Tuple[b
     conn.commit()
     state_str = "activated" if new_status == 1 else "deactivated"
     return True, f"User {user['username']} has been {state_str}."
+
+
+# -------------------------------------------------------------
+# Dual-Control Maker-Checker Workflow (Change Requests)
+# -------------------------------------------------------------
+def create_change_request(
+    conn: sqlite3.Connection,
+    vehicle_id: int,
+    requester_id: int,
+    proposed_owner_name: str,
+    proposed_owner_type: str,
+    proposed_campus_id: Optional[str],
+    proposed_phone: Optional[str],
+    proposed_make_model: Optional[str],
+    reason: str,
+) -> Dict[str, Any]:
+    """Submit a vehicle profile change request for administrator approval."""
+    if not proposed_owner_name or not proposed_owner_name.strip():
+        raise ValueError("Proposed owner name cannot be empty.")
+    if proposed_owner_type not in ("Student", "Staff", "Visitor"):
+        raise ValueError("Proposed category must be Student, Staff, or Visitor.")
+    if not reason or not reason.strip():
+        raise ValueError("A clear explanation / reason for this change is required.")
+
+    cur = conn.cursor()
+    now_utc = datetime.now(timezone.utc).isoformat()
+    cur.execute(
+        """
+        INSERT INTO vehicle_change_requests (
+            vehicle_id, requested_by_id, proposed_owner_name, proposed_owner_type,
+            proposed_campus_id, proposed_phone, proposed_make_model, reason,
+            status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+        """,
+        (
+            vehicle_id,
+            requester_id,
+            proposed_owner_name.strip(),
+            proposed_owner_type,
+            proposed_campus_id.strip() if proposed_campus_id else None,
+            proposed_phone.strip() if proposed_phone else None,
+            proposed_make_model.strip() if proposed_make_model else None,
+            reason.strip(),
+            now_utc,
+        ),
+    )
+    conn.commit()
+    return get_change_request_by_id(conn, cur.lastrowid)  # type: ignore
+
+
+def get_change_request_by_id(conn: sqlite3.Connection, request_id: int) -> Optional[Dict[str, Any]]:
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT 
+            cr.*,
+            v.display_registration,
+            v.owner_name as current_owner_name,
+            v.owner_type as current_owner_type,
+            v.campus_id as current_campus_id,
+            v.phone as current_phone,
+            v.make_model as current_make_model,
+            u1.username as requester_username,
+            u2.username as reviewer_username
+        FROM vehicle_change_requests cr
+        JOIN vehicles v ON cr.vehicle_id = v.id
+        JOIN users u1 ON cr.requested_by_id = u1.id
+        LEFT JOIN users u2 ON cr.reviewed_by_id = u2.id
+        WHERE cr.id = ?
+        """,
+        (request_id,),
+    )
+    row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def list_change_requests(
+    conn: sqlite3.Connection, status_filter: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    cur = conn.cursor()
+    params = []
+    where_clause = ""
+    if status_filter and status_filter.upper() in ("PENDING", "APPROVED", "REJECTED"):
+        where_clause = "WHERE cr.status = ?"
+        params.append(status_filter.upper())
+
+    cur.execute(
+        f"""
+        SELECT 
+            cr.*,
+            v.display_registration,
+            v.owner_name as current_owner_name,
+            u1.username as requester_username,
+            u2.username as reviewer_username
+        FROM vehicle_change_requests cr
+        JOIN vehicles v ON cr.vehicle_id = v.id
+        JOIN users u1 ON cr.requested_by_id = u1.id
+        LEFT JOIN users u2 ON cr.reviewed_by_id = u2.id
+        {where_clause}
+        ORDER BY cr.id DESC
+        """,
+        params,
+    )
+    return [dict(r) for r in cur.fetchall()]
+
+
+def get_change_requests_for_vehicle(conn: sqlite3.Connection, vehicle_id: int) -> List[Dict[str, Any]]:
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT 
+            cr.*,
+            u1.username as requester_username,
+            u2.username as reviewer_username
+        FROM vehicle_change_requests cr
+        JOIN users u1 ON cr.requested_by_id = u1.id
+        LEFT JOIN users u2 ON cr.reviewed_by_id = u2.id
+        WHERE cr.vehicle_id = ?
+        ORDER BY cr.id DESC
+        """,
+        (vehicle_id,),
+    )
+    return [dict(r) for r in cur.fetchall()]
+
+
+def get_pending_requests_count(conn: sqlite3.Connection) -> int:
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) AS count FROM vehicle_change_requests WHERE status = 'PENDING'")
+    return cur.fetchone()["count"]
+
+
+def approve_change_request(
+    conn: sqlite3.Connection, request_id: int, reviewer_id: int
+) -> Tuple[bool, str]:
+    """Approve a change request and apply the proposed changes to the vehicle profile."""
+    req = get_change_request_by_id(conn, request_id)
+    if not req:
+        return False, "Change request not found."
+    if req["status"] != "PENDING":
+        return False, f"Request has already been processed ({req['status']})."
+
+    now_utc = datetime.now(timezone.utc).isoformat()
+    cur = conn.cursor()
+
+    try:
+        # Update vehicle profile
+        cur.execute(
+            """
+            UPDATE vehicles
+            SET owner_name = ?, owner_type = ?, campus_id = ?, phone = ?,
+                make_model = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                req["proposed_owner_name"],
+                req["proposed_owner_type"],
+                req["proposed_campus_id"],
+                req["proposed_phone"],
+                req["proposed_make_model"],
+                now_utc,
+                req["vehicle_id"],
+            ),
+        )
+
+        # Mark request APPROVED
+        cur.execute(
+            """
+            UPDATE vehicle_change_requests
+            SET status = 'APPROVED', reviewed_by_id = ?, reviewed_at = ?
+            WHERE id = ?
+            """,
+            (reviewer_id, now_utc, request_id),
+        )
+        conn.commit()
+        return True, f"Change request #{request_id} for {req['display_registration']} approved and applied."
+    except Exception as e:
+        conn.rollback()
+        return False, f"Failed to approve change request: {str(e)}"
+
+
+def reject_change_request(
+    conn: sqlite3.Connection, request_id: int, reviewer_id: int, review_notes: Optional[str] = None
+) -> Tuple[bool, str]:
+    """Reject a change request with an explanation."""
+    req = get_change_request_by_id(conn, request_id)
+    if not req:
+        return False, "Change request not found."
+    if req["status"] != "PENDING":
+        return False, f"Request has already been processed ({req['status']})."
+
+    now_utc = datetime.now(timezone.utc).isoformat()
+    cur = conn.cursor()
+
+    cur.execute(
+        """
+        UPDATE vehicle_change_requests
+        SET status = 'REJECTED', reviewed_by_id = ?, review_notes = ?, reviewed_at = ?
+        WHERE id = ?
+        """,
+        (reviewer_id, review_notes.strip() if review_notes else None, now_utc, request_id),
+    )
+    conn.commit()
+    return True, f"Change request #{request_id} for {req['display_registration']} rejected."
