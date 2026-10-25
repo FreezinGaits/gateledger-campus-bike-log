@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}500 Internal Server Error — GateLedger{% endblock %}
+
+{% block content %}
+<div class="empty-state" style="padding: 4rem 1rem;">
+  <span class="empty-state-icon">⚠️</span>
+  <h1 class="empty-state-title" style="font-size: 1.8rem; color: var(--rose-600);">500 — Internal Server Error</h1>
+  <p class="form-help" style="max-width: 500px; margin: 0.5rem auto 1.5rem auto; font-size: 0.95rem;">
+    An internal system error occurred. The incident has been recorded and the database transaction was safely rolled back.
+  </p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+    Return to Dashboard
+  </a>
+</div>
+{% endblock %}

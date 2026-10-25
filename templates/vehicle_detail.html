@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if is_new %}Register New Vehicle{% else %}Vehicle {{ vehicle.display_registration }}{% endif %} — GateLedger
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      {% if is_new %}
+        Register Campus Vehicle
+      {% else %}
+        Vehicle: {{ vehicle.display_registration }}
+      {% endif %}
+    </h1>
+    <p class="page-subtitle">
+      {% if is_new %}
+        Add a student, staff, or visitor bike to the gate ledger database
+      {% else %}
+        Manage profile and inspect verified historical passage logs
+      {% endif %}
+    </p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('vehicle_list') }}" class="btn btn-secondary">
+      &larr; Back to Vehicles
+    </a>
+    {% if not is_new %}
+      <a href="{{ url_for('new_event', reg=vehicle.registration_number) }}" class="btn btn-primary">
+        + Log Passage for This Bike
+      </a>
+    {% endif %}
+  </div>
+</div>
+
+{% if is_new %}
+  <!-- Registration Form for New Vehicle -->
+  <div style="max-width: 700px; margin: 0 auto;">
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">New Vehicle Registration</h2>
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('vehicle_new') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="form-group">
+            <label for="registration_number" class="form-label">Registration Number <span class="req">*</span></label>
+            <input 
+              type="text" 
+              id="registration_number" 
+              name="registration_number" 
+              class="form-control" 
+              placeholder="e.g. PB10AB1234" 
+              value="{{ form_data.registration_number or '' }}" 
+              required
+              style="text-transform: uppercase; font-family: var(--font-mono); font-weight: bold;"
+            >
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="owner_name" class="form-label">Owner / Rider Name <span class="req">*</span></label>
+              <input 
+                type="text" 
+                id="owner_name" 
+                name="owner_name" 
+                class="form-control" 
+                placeholder="e.g. Rahul Mehta" 
+                value="{{ form_data.owner_name or '' }}" 
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="owner_type" class="form-label">Category <span class="req">*</span></label>
+              <select id="owner_type" name="owner_type" class="form-control" required>
+                <option value="Student" {% if form_data.owner_type == 'Student' %}selected{% endif %}>Student</option>
+                <option value="Staff" {% if form_data.owner_type == 'Staff' %}selected{% endif %}>Faculty / Staff</option>
+                <option value="Visitor" {% if form_data.owner_type == 'Visitor' %}selected{% endif %}>Visitor</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="campus_id" class="form-label">Campus / Roll ID</label>
+              <input 
+                type="text" 
+                id="campus_id" 
+                name="campus_id" 
+                class="form-control" 
+                placeholder="e.g. CS2024-001" 
+                value="{{ form_data.campus_id or '' }}"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="phone" class="form-label">Phone Number</label>
+              <input 
+                type="text" 
+                id="phone" 
+                name="phone" 
+                class="form-control" 
+                placeholder="e.g. 9876543210" 
+                value="{{ form_data.phone or '' }}"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="make_model" class="form-label">Vehicle Make &amp; Model</label>
+            <input 
+              type="text" 
+              id="make_model" 
+              name="make_model" 
+              class="form-control" 
+              placeholder="e.g. TVS Jupiter 125 (Grey)" 
+              value="{{ form_data.make_model or '' }}"
+            >
+          </div>
+
+          <div style="margin-top: 1.5rem; text-align: right;">
+            <button type="submit" class="btn btn-primary btn-lg" style="width: 100%;">
+              Register Vehicle
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+{% else %}
+  <!-- Existing Vehicle Profile & Timeline -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1.5rem;">
+    <!-- Profile & Edit Form -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">Vehicle Profile</h2>
+        {% if vehicle.current_status == 'INSIDE' %}
+          <span class="badge badge-inside">● CURRENTLY INSIDE</span>
+        {% else %}
+          <span class="badge badge-outside">○ CURRENTLY OUTSIDE</span>
+        {% endif %}
+      </div>
+
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('vehicle_edit', vehicle_id=vehicle.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="form-group">
+            <label class="form-label">Normalized Registration (Primary Key)</label>
+            <input 
+              type="text" 
+              class="form-control" 
+              value="{{ vehicle.display_registration }}" 
+              disabled
+              style="background-color: var(--slate-100); font-family: var(--font-mono); font-weight: bold;"
+            >
+            <p class="form-help">Registration numbers are permanent identifiers and cannot be altered.</p>
+          </div>
+
+          <div class="form-group">
+            <label for="owner_name" class="form-label">Owner / Primary Rider <span class="req">*</span></label>
+            <input 
+              type="text" 
+              id="owner_name" 
+              name="owner_name" 
+              class="form-control" 
+              value="{{ vehicle.owner_name }}" 
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="owner_type" class="form-label">Category</label>
+            <select id="owner_type" name="owner_type" class="form-control">
+              <option value="Student" {% if vehicle.owner_type == 'Student' %}selected{% endif %}>Student</option>
+              <option value="Staff" {% if vehicle.owner_type == 'Staff' %}selected{% endif %}>Faculty / Staff</option>
+              <option value="Visitor" {% if vehicle.owner_type == 'Visitor' %}selected{% endif %}>Visitor</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="campus_id" class="form-label">Campus / Roll ID</label>
+              <input 
+                type="text" 
+                id="campus_id" 
+                name="campus_id" 
+                class="form-control" 
+                value="{{ vehicle.campus_id or '' }}"
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="phone" class="form-label">Phone</label>
+              <input 
+                type="text" 
+                id="phone" 
+                name="phone" 
+                class="form-control" 
+                value="{{ vehicle.phone or '' }}"
+              >
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="make_model" class="form-label">Make &amp; Model</label>
+            <input 
+              type="text" 
+              id="make_model" 
+              name="make_model" 
+              class="form-control" 
+              value="{{ vehicle.make_model or '' }}"
+            >
+          </div>
+
+          <div style="margin-top: 1.25rem;">
+            <button type="submit" class="btn btn-secondary" style="width: 100%;">
+              Update Profile Information
+            </button>
+          </div>
+        </form>
+
+        <div style="margin-top: 1.25rem; font-size: 0.78rem; color: var(--slate-500); padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+          <strong>Ledger Integrity Rule:</strong> Updating this profile will NOT alter past passage records. Every historical gate event preserves its immutable snapshot on the blockchain.
+        </div>
+      </div>
+    </div>
+
+    <!-- Complete Passage History Timeline -->
+    <div class="card" style="grid-column: span 1 / -1;">
+      <div class="card-header">
+        <h2 class="card-title">Passage Timeline ({{ history | length }} events)</h2>
+        <a href="{{ url_for('new_event', reg=vehicle.registration_number) }}" class="btn btn-primary btn-sm">
+          + Log New Passage
+        </a>
+      </div>
+
+      <div class="card-body" style="padding: 0;">
+        {% if history %}
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Event ID</th>
+                  <th>Event Type</th>
+                  <th>Rider Snapshot</th>
+                  <th>Gate</th>
+                  <th>Timestamp</th>
+                  <th>Operator</th>
+                  <th>Blockchain Block # &amp; Hash</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ev in history %}
+                  <tr>
+                    <td><strong>#{{ ev.id }}</strong></td>
+                    <td>
+                      {% if ev.event_type == 'ENTRY' %}
+                        <span class="badge badge-entry">ENTRY</span>
+                      {% else %}
+                        <span class="badge badge-exit">EXIT</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ ev.rider_name_snapshot }}</td>
+                    <td>{{ ev.gate_name }}</td>
+                    <td>{{ ev.event_timestamp_utc | format_dt }}</td>
+                    <td>{{ ev.operator_username }}</td>
+                    <td>
+                      {% if ev.block_index is not none %}
+                        <a href="{{ url_for('blockchain_explorer') }}" class="code-hash" title="{{ ev.block_hash }}">
+                          #{{ ev.block_index }} &bull; {{ ev.block_hash | short_hash(10) }}
+                        </a>
+                      {% else %}
+                        <span style="color: var(--slate-400); font-size: 0.8rem;">Unmined</span>
+                      {% endif %}
+                    </td>
+                    <td style="text-align: right;">
+                      <a href="{{ url_for('event_detail', event_id=ev.id) }}" class="btn btn-secondary btn-sm">
+                        Inspect
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <span class="empty-state-icon">⏱️</span>
+            <h3 class="empty-state-title">No Passage Records Yet</h3>
+            <p class="form-help">This vehicle has not entered or exited through any campus gates yet.</p>
+            <div style="margin-top: 1rem;">
+              <a href="{{ url_for('new_event', reg=vehicle.registration_number) }}" class="btn btn-primary">
+                Log First Passage
+              </a>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

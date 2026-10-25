@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Log Vehicle Entry / Exit — GateLedger{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Record Gate Event</h1>
+    <p class="page-subtitle">Log vehicle passage and atomically append a verified Proof-of-Work blockchain block</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('event_records') }}" class="btn btn-secondary">
+      Back to Records
+    </a>
+  </div>
+</div>
+
+<div style="max-width: 800px; margin: 0 auto;">
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Vehicle Passage Entry Form</h2>
+      <span style="font-size: 0.8rem; color: var(--slate-500);">Operator: <strong>{{ current_user.username }}</strong></span>
+    </div>
+
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('new_event') }}" id="gate-event-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <!-- 1. Event Type Selector (ENTRY / EXIT) -->
+        <div class="form-group">
+          <label class="form-label">Select Event Type <span class="req">*</span></label>
+          <div class="type-selector">
+            <label class="type-option {% if (form_data.event_type or prefill_type) != 'EXIT' %}selected-entry{% endif %}" id="card-type-entry">
+              <input 
+                type="radio" 
+                name="event_type" 
+                id="type-entry" 
+                value="ENTRY" 
+                {% if (form_data.event_type or prefill_type) != 'EXIT' %}checked{% endif %}
+              >
+              <span class="type-icon">🟢</span>
+              <span class="type-title">ENTRY (Inbound)</span>
+              <span style="font-size: 0.75rem; color: var(--slate-500); margin-top: 0.2rem;">Entering Campus</span>
+            </label>
+
+            <label class="type-option {% if (form_data.event_type or prefill_type) == 'EXIT' %}selected-exit{% endif %}" id="card-type-exit">
+              <input 
+                type="radio" 
+                name="event_type" 
+                id="type-exit" 
+                value="EXIT" 
+                {% if (form_data.event_type or prefill_type) == 'EXIT' %}checked{% endif %}
+              >
+              <span class="type-icon">🔴</span>
+              <span class="type-title">EXIT (Outbound)</span>
+              <span style="font-size: 0.75rem; color: var(--slate-500); margin-top: 0.2rem;">Leaving Campus</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 2. Vehicle Registration & Live Status Lookup -->
+        <div class="form-group">
+          <label for="registration_number" class="form-label">
+            Vehicle Registration Number <span class="req">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="registration_number" 
+            name="registration_number" 
+            class="form-control" 
+            placeholder="e.g. PB10AB1234 or DL03XY8899" 
+            value="{{ form_data.registration_number or prefill_reg or '' }}" 
+            required 
+            autocomplete="off"
+            style="text-transform: uppercase; font-family: var(--font-mono); font-size: 1.1rem; letter-spacing: 1px;"
+          >
+          <p class="form-help">Enter vehicle license plate. Existing details will be automatically retrieved.</p>
+        </div>
+
+        <!-- Live Vehicle Status Container (Populated by JS) -->
+        <div id="vehicle-status-indicator"></div>
+
+        <!-- 3. Rider Profile Details -->
+        <div class="form-row">
+          <div class="form-group">
+            <label for="rider_name" class="form-label">Rider / Owner Name <span class="req">*</span></label>
+            <input 
+              type="text" 
+              id="rider_name" 
+              name="rider_name" 
+              class="form-control" 
+              placeholder="e.g. Rohan Sharma" 
+              value="{{ form_data.rider_name or '' }}" 
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="owner_type" class="form-label">Rider Category <span class="req">*</span></label>
+            <select id="owner_type" name="owner_type" class="form-control" required>
+              <option value="Student" {% if form_data.owner_type == 'Student' %}selected{% endif %}>Student</option>
+              <option value="Staff" {% if form_data.owner_type == 'Staff' %}selected{% endif %}>Faculty / Staff</option>
+              <option value="Visitor" {% if form_data.owner_type == 'Visitor' %}selected{% endif %}>Visitor / Guest</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="campus_id" class="form-label">Campus Roll / Employee ID</label>
+            <input 
+              type="text" 
+              id="campus_id" 
+              name="campus_id" 
+              class="form-control" 
+              placeholder="e.g. CS2023-441 or FAC-109 (Optional for Visitors)" 
+              value="{{ form_data.campus_id or '' }}"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="phone" class="form-label">Contact Phone Number</label>
+            <input 
+              type="text" 
+              id="phone" 
+              name="phone" 
+              class="form-control" 
+              placeholder="e.g. 9876543210" 
+              value="{{ form_data.phone or '' }}"
+            >
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="make_model" class="form-label">Vehicle Make &amp; Model</label>
+            <input 
+              type="text" 
+              id="make_model" 
+              name="make_model" 
+              class="form-control" 
+              placeholder="e.g. Honda Activa 6G / Royal Enfield 350" 
+              value="{{ form_data.make_model or '' }}"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="gate_name" class="form-label">Campus Gate <span class="req">*</span></label>
+            <select id="gate_name" name="gate_name" class="form-control" required>
+              <option value="Main Gate (Gate 1)" {% if form_data.gate_name == 'Main Gate (Gate 1)' %}selected{% endif %}>Main Gate (Gate 1)</option>
+              <option value="North Gate (Gate 2)" {% if form_data.gate_name == 'North Gate (Gate 2)' %}selected{% endif %}>North Gate (Gate 2)</option>
+              <option value="South Gate (Gate 3)" {% if form_data.gate_name == 'South Gate (Gate 3)' %}selected{% endif %}>South Gate (Gate 3)</option>
+              <option value="Hostel Gate (Gate 4)" {% if form_data.gate_name == 'Hostel Gate (Gate 4)' %}selected{% endif %}>Hostel Gate (Gate 4)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="notes" class="form-label">Operational Notes (Optional)</label>
+          <input 
+            type="text" 
+            id="notes" 
+            name="notes" 
+            class="form-control" 
+            placeholder="e.g. Helmet checked, luggage verified, visitor pass issued" 
+            value="{{ form_data.notes or '' }}"
+          >
+        </div>
+
+        <div style="margin-top: 1.5rem; text-align: right;">
+          <button type="submit" id="submit-event-btn" class="btn btn-primary btn-lg" style="width: 100%;">
+            Log Vehicle ENTRY &amp; Append Block
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}403 Forbidden — GateLedger{% endblock %}
+
+{% block content %}
+<div class="empty-state" style="padding: 4rem 1rem;">
+  <span class="empty-state-icon">🚫</span>
+  <h1 class="empty-state-title" style="font-size: 1.8rem; color: var(--rose-600);">403 — Access Forbidden</h1>
+  <p class="form-help" style="max-width: 500px; margin: 0.5rem auto 1.5rem auto; font-size: 0.95rem;">
+    {{ description or "You do not have administrative clearance to access this resource." }}
+  </p>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-primary">
+    Return to Dashboard
+  </a>
+</div>
+{% endblock %}

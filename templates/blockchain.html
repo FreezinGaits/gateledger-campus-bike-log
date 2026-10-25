@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+
+{% block title %}Blockchain Explorer &amp; Ledger Audit — GateLedger{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Blockchain Explorer &amp; Cryptographic Audit</h1>
+    <p class="page-subtitle">Persistent SHA-256 Proof-of-Work chain securing campus gate events</p>
+  </div>
+  <div class="page-actions">
+    <form method="POST" action="{{ url_for('verify_chain_route') }}" style="display: inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary">
+        Verify Blockchain Integrity
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Chain Summary Metrics -->
+<div class="metrics-grid">
+  <div class="metric-card accent-teal">
+    <span class="metric-label">Total Blocks</span>
+    <span class="metric-value">{{ total_blocks }}</span>
+    <span class="metric-hint">Genesis + {{ total_blocks - 1 }} Gate Events</span>
+  </div>
+
+  <div class="metric-card accent-navy">
+    <span class="metric-label">PoW Difficulty</span>
+    <span class="metric-value">{{ difficulty }}</span>
+    <span class="metric-hint">Target prefix: "{{ '0' * difficulty }}"</span>
+  </div>
+
+  <div class="metric-card accent-emerald">
+    <span class="metric-label">Chain Status</span>
+    <div style="margin: 0.4rem 0;">
+      {% if verification.is_valid %}
+        <span class="badge badge-valid">CHAIN INTACT &bull; VALID</span>
+      {% else %}
+        <span class="badge badge-invalid">TAMPER DETECTED</span>
+      {% endif %}
+    </div>
+    <span class="metric-hint">{{ verification.reason }}</span>
+  </div>
+
+  <div class="metric-card accent-teal" style="grid-column: span 1 / -1;">
+    <span class="metric-label">Current Chain-Head Hash</span>
+    <div class="code-hash" style="margin-top: 0.35rem; font-size: 0.95rem; word-break: break-all; color: var(--teal-700);">
+      {{ chain_head_hash or 'None' }}
+    </div>
+  </div>
+</div>
+
+<!-- Safe Tampering Simulation Card -->
+<div class="card" style="border-left: 4px solid var(--amber-500);">
+  <div class="card-header" style="background-color: var(--amber-50);">
+    <div>
+      <h2 class="card-title" style="color: var(--amber-700);">Simulate Tampering Demonstration</h2>
+      <p style="font-size: 0.8rem; color: var(--slate-600); margin-top: 0.2rem;">
+        Viva Demonstration Tool: Safely test cryptographic tamper-detection using an <strong>in-memory replica</strong>. The persisted SQLite database is never changed.
+      </p>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <form method="POST" action="{{ url_for('simulate_tampering_route') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; align-items: end;">
+        <div>
+          <label class="form-label" style="font-size: 0.78rem;">Target Block Index</label>
+          <select name="block_index" class="form-control">
+            {% for b in blocks %}
+              <option value="{{ b.block_index }}" {% if loop.last %}selected{% endif %}>
+                Block #{{ b.block_index }} {% if b.block_index == 0 %}(Genesis){% else %}(Event #{{ b.event_id }}){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem;">Field to Alter</label>
+          <select name="tamper_field" class="form-control">
+            <option value="rider_name">rider_name (Rider identity)</option>
+            <option value="event_type">event_type (Switch ENTRY/EXIT)</option>
+            <option value="registration_number">registration_number (Plate number)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem;">Tampered Payload Value</label>
+          <input 
+            type="text" 
+            name="tamper_value" 
+            class="form-control" 
+            value="Unauthorized Impersonator" 
+            required
+          >
+        </div>
+
+        <div>
+          <button type="submit" class="btn btn-danger" style="width: 100%;">
+            Run Safe Tamper Test
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Tampering Simulation Audit Feedback (if session result exists) -->
+    {% if session.get('tamper_simulation_result') %}
+      {% set sim = session.get('tamper_simulation_result') %}
+      <div style="margin-top: 1.25rem; padding: 1.25rem; background-color: var(--rose-50); border: 1px solid #fecdd3; border-radius: var(--radius-md);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <strong style="color: var(--rose-700); font-size: 1.05rem;">
+            Audit Detection Result: Tampering Flagged Immediately!
+          </strong>
+          <span class="badge badge-invalid">FAIL &bull; TAMPER DETECTED</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem; color: var(--navy-900);">
+          <div>
+            <strong>Targeted Block:</strong> Block #{{ sim.tampered_block_index }}
+          </div>
+          <div>
+            <strong>Original Payload:</strong>
+            <code class="code-hash">{{ sim.original_payload }}</code>
+          </div>
+          <div>
+            <strong>Tampered Payload:</strong>
+            <code class="code-hash" style="background-color: #fee2e2; color: #991b1b;">{{ sim.tampered_payload }}</code>
+          </div>
+          <div class="form-row" style="margin-top: 0.25rem;">
+            <div>
+              <strong>Original Stored Hash:</strong><br>
+              <span class="code-hash">{{ sim.original_hash }}</span>
+            </div>
+            <div>
+              <strong>Recomputed SHA-256 (Mismatch!):</strong><br>
+              <span class="code-hash" style="background-color: #fee2e2; color: #991b1b;">{{ sim.recomputed_hash }}</span>
+            </div>
+          </div>
+          <div style="margin-top: 0.5rem; padding: 0.5rem; background: #ffffff; border-radius: var(--radius-sm); border: 1px solid #fecdd3;">
+            <strong>Verification Diagnosis:</strong> {{ sim.verification_result.reason }}
+          </div>
+          <div style="margin-top: 0.25rem; color: var(--emerald-700); font-weight: 600;">
+            Database Status: Stored SQLite ledger remains untouched and completely authentic.
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Ledger Blocks Table -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Mined Blockchain Blocks (Ledger)</h2>
+    <span style="font-size: 0.8rem; color: var(--slate-500);">
+      Cryptographic hash chaining ensures append-only immutability
+    </span>
+  </div>
+
+  <div class="card-body" style="padding: 0;">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Index</th>
+            <th>Type / Event</th>
+            <th>Timestamp (Local)</th>
+            <th>Nonce (PoW)</th>
+            <th>Previous Hash</th>
+            <th>Block Hash (SHA-256)</th>
+            <th style="text-align: right;">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in blocks %}
+            <tr>
+              <td>
+                <strong style="color: var(--teal-700); font-size: 1rem;">
+                  #{{ b.block_index }}
+                </strong>
+              </td>
+              <td>
+                {% if b.block_index == 0 %}
+                  <span class="badge" style="background-color: #f1f5f9; color: #0f172a; border: 1px solid #cbd5e1;">GENESIS</span>
+                {% else %}
+                  {% if b.event_type == 'ENTRY' %}
+                    <span class="badge badge-entry">ENTRY</span>
+                  {% else %}
+                    <span class="badge badge-exit">EXIT</span>
+                  {% endif %}
+                  <span style="font-size: 0.8rem; margin-left: 0.35rem; font-family: var(--font-mono); font-weight: 600;">
+                    {{ b.registration_number_snapshot }}
+                  </span>
+                {% endif %}
+              </td>
+              <td>{{ b.timestamp_utc | format_dt }}</td>
+              <td><span style="font-family: var(--font-mono); font-weight: 700;">{{ b.nonce }}</span></td>
+              <td>
+                <span class="code-hash" title="{{ b.previous_hash }}">
+                  {{ b.previous_hash | short_hash(12) }}
+                </span>
+              </td>
+              <td>
+                <span class="code-hash" title="{{ b.block_hash }}" style="color: var(--emerald-700); font-weight: 600;">
+                  {{ b.block_hash | short_hash(14) }}
+                </span>
+              </td>
+              <td style="text-align: right;">
+                <button 
+                  type="button" 
+                  class="btn btn-secondary btn-sm btn-inspect-block" 
+                  data-block-index="{{ b.block_index }}"
+                >
+                  Inspect
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Block JSON Inspector Modal -->
+<div id="block-detail-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.7); z-index: 1000; align-items: center; justify-content: center; padding: 1rem;">
+  <div style="background: #ffffff; border-radius: var(--radius-lg); width: 100%; max-width: 650px; box-shadow: var(--shadow-lg); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh;">
+    <div style="padding: 1rem 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--slate-100);">
+      <h3 id="modal-block-title" style="font-size: 1.1rem; color: var(--navy-900); font-weight: 700;">
+        Block Details
+      </h3>
+      <button type="button" class="close-modal btn btn-secondary btn-sm" style="padding: 0.2rem 0.5rem; font-size: 1rem;">&times;</button>
+    </div>
+
+    <div style="padding: 1.25rem; overflow-y: auto;">
+      <pre id="modal-block-json" class="code-block" style="max-height: 400px; font-size: 0.85rem;"></pre>
+      <div style="margin-top: 1rem; font-size: 0.78rem; color: var(--slate-500);">
+        <strong>Hash Equation:</strong> <code>SHA-256(index | timestamp | event_id | canonical_payload | previous_hash | nonce)</code>
+      </div>
+    </div>
+
+    <div style="padding: 0.75rem 1.25rem; border-top: 1px solid var(--border-color); text-align: right; background: #ffffff;">
+      <button type="button" class="close-modal btn btn-secondary btn-sm">Close</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Campus Bike Log & Blockchain Ledger{% endblock %} — GateLedger</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Main Top Navigation -->
+    <header class="navbar">
+      <a href="{{ url_for('dashboard') }}" class="nav-brand">
+        <div class="brand-icon">GL</div>
+        <div class="brand-title">
+          GateLedger
+          <span class="brand-sub">Campus Blockchain</span>
+        </div>
+      </a>
+
+      {% if current_user %}
+      <nav>
+        <ul class="nav-links">
+          <li>
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+              Dashboard
+            </a>
+          </li>
+          <li>
+            <a href="{{ url_for('new_event') }}" class="nav-link {% if request.endpoint == 'new_event' %}active{% endif %}">
+              + Log Entry / Exit
+            </a>
+          </li>
+          <li>
+            <a href="{{ url_for('event_records') }}" class="nav-link {% if request.endpoint in ('event_records', 'event_detail') %}active{% endif %}">
+              Gate Records
+            </a>
+          </li>
+          <li>
+            <a href="{{ url_for('vehicle_list') }}" class="nav-link {% if request.endpoint in ('vehicle_list', 'vehicle_new', 'vehicle_detail_view') %}active{% endif %}">
+              Vehicles
+            </a>
+          </li>
+          <li>
+            <a href="{{ url_for('blockchain_explorer') }}" class="nav-link {% if request.endpoint == 'blockchain_explorer' %}active{% endif %}">
+              Blockchain Explorer
+            </a>
+          </li>
+          {% if current_user.role == 'admin' %}
+          <li>
+            <a href="{{ url_for('admin_users') }}" class="nav-link {% if request.endpoint == 'admin_users' %}active{% endif %}">
+              User Accounts
+            </a>
+          </li>
+          {% endif %}
+        </ul>
+      </nav>
+
+      <div class="nav-user">
+        <div class="user-badge">
+          <span>{{ current_user.username }}</span>
+          <span class="role-pill {% if current_user.role == 'admin' %}role-admin{% else %}role-guard{% endif %}">
+            {{ current_user.role }}
+          </span>
+        </div>
+        <form method="POST" action="{{ url_for('logout') }}" style="display: inline;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="btn-logout">Logout</button>
+        </form>
+      </div>
+      {% endif %}
+    </header>
+
+    <!-- Main Page Content -->
+    <main class="main-content">
+      <!-- Flash Alert Banners -->
+      <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">
+                <span>{{ message }}</span>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+      </div>
+
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- App Footer -->
+    <footer class="footer">
+      <div>
+        <strong>GateLedger</strong> &mdash; Blockchain-Based Campus Bike Entry &amp; Exit Management System
+      </div>
+      <div style="margin-top: 0.35rem; color: var(--slate-400); font-size: 0.76rem;">
+        SHA-256 Hash Chaining &bull; Proof-of-Work (PoW) &bull; Single-Node Educational Ledger &bull; B.Tech Final Year Demonstration
+      </div>
+    </footer>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

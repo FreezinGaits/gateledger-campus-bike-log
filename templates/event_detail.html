@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}Event #{{ event.id }} — Gate Passage Audit — GateLedger{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Gate Event Passage #{{ event.id }}</h1>
+    <p class="page-subtitle">Immutable audit record verified by cryptographically linked blockchain block</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('event_records') }}" class="btn btn-secondary">
+      &larr; Back to Records
+    </a>
+    <a href="{{ url_for('new_event', reg=event.registration_number_snapshot) }}" class="btn btn-primary">
+      Log Next Action
+    </a>
+  </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 1.5rem;">
+  <!-- Left Column: Gate Event Snapshot -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Event Snapshot</h2>
+      {% if event.event_type == 'ENTRY' %}
+        <span class="badge badge-entry">ENTRY</span>
+      {% else %}
+        <span class="badge badge-exit">EXIT</span>
+      {% endif %}
+    </div>
+
+    <div class="card-body">
+      <div style="display: flex; flex-direction: column; gap: 0.85rem; font-size: 0.92rem;">
+        <div>
+          <span class="metric-label">Vehicle Registration</span>
+          <div style="font-size: 1.25rem; font-weight: 700; font-family: var(--font-mono); margin-top: 0.15rem;">
+            <a href="{{ url_for('vehicle_detail_view', vehicle_id=event.vehicle_id) }}" style="color: var(--navy-900); text-decoration: none;">
+              {{ event.display_registration }}
+            </a>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <span class="metric-label">Rider Name</span>
+            <div style="font-weight: 600;">{{ event.rider_name_snapshot }}</div>
+          </div>
+          <div>
+            <span class="metric-label">Category</span>
+            <div><span class="badge badge-category">{{ event.owner_type_snapshot }}</span></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <span class="metric-label">Campus / Roll ID</span>
+            <div>{{ event.campus_id_snapshot or 'N/A (Visitor)' }}</div>
+          </div>
+          <div>
+            <span class="metric-label">Campus Gate</span>
+            <div style="font-weight: 500;">{{ event.gate_name }}</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <span class="metric-label">Recorded Local Time</span>
+            <div style="font-weight: 600;">{{ event.event_timestamp_utc | format_dt }}</div>
+          </div>
+          <div>
+            <span class="metric-label">Security Operator</span>
+            <div>{{ event.operator_username }}</div>
+          </div>
+        </div>
+
+        <div>
+          <span class="metric-label">UTC Timestamp</span>
+          <div class="code-hash" style="display: block; word-break: break-all; margin-top: 0.2rem;">
+            {{ event.event_timestamp_utc }}
+          </div>
+        </div>
+
+        {% if event.notes %}
+          <div>
+            <span class="metric-label">Operational Notes</span>
+            <div style="background-color: var(--slate-100); padding: 0.6rem; border-radius: var(--radius-sm); margin-top: 0.2rem;">
+              {{ event.notes }}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border-color); font-size: 0.8rem; color: var(--slate-500);">
+        <em>Note: Historical event snapshots are strictly append-only and cannot be altered or deleted.</em>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: Blockchain Proof -->
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Blockchain Block Verification</h2>
+      <a href="{{ url_for('blockchain_explorer') }}" class="btn btn-secondary btn-sm">
+        Blockchain Explorer
+      </a>
+    </div>
+
+    <div class="card-body">
+      {% if event.block_index is not none %}
+        <div style="display: flex; flex-direction: column; gap: 0.9rem; font-size: 0.88rem;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span class="metric-label">Block Height / Index</span>
+            <span style="font-size: 1.25rem; font-weight: 800; color: var(--teal-700);">
+              #{{ event.block_index }}
+            </span>
+          </div>
+
+          <div>
+            <span class="metric-label">Block Hash (SHA-256)</span>
+            <div class="code-hash" style="word-break: break-all; margin-top: 0.2rem; font-weight: 600; color: var(--emerald-700); background-color: var(--emerald-50);">
+              {{ event.block_hash }}
+            </div>
+            <div style="font-size: 0.75rem; color: var(--slate-500); margin-top: 0.2rem;">
+              Valid Proof of Work &bull; Begins with configured difficulty prefix
+            </div>
+          </div>
+
+          <div>
+            <span class="metric-label">Previous Block Hash (Link)</span>
+            <div class="code-hash" style="word-break: break-all; margin-top: 0.2rem; color: var(--slate-600);">
+              {{ event.previous_hash }}
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div>
+              <span class="metric-label">Mining Nonce</span>
+              <div style="font-weight: 700; font-family: var(--font-mono);">{{ event.nonce }}</div>
+            </div>
+            <div>
+              <span class="metric-label">Block Timestamp (UTC)</span>
+              <div style="font-size: 0.82rem; font-family: var(--font-mono);">{{ event.block_timestamp_utc }}</div>
+            </div>
+          </div>
+
+          <div>
+            <span class="metric-label">Canonical Payload JSON</span>
+            <pre class="code-block" style="margin-top: 0.25rem; max-height: 180px;">{{ event.data_json }}</pre>
+          </div>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          <span class="empty-state-icon">⚠️</span>
+          <p>No blockchain block record linked to this event.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

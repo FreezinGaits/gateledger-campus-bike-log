@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Login — Campus Security Portal{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="brand-icon" style="width: 44px; height: 44px; font-size: 1.35rem; margin: 0 auto 0.75rem auto;">GL</div>
+      <h1 class="page-title" style="font-size: 1.45rem;">GateLedger Portal</h1>
+      <p class="page-subtitle">Campus Bike Entry &amp; Exit Log with Blockchain Ledger</p>
+    </div>
+
+    <form method="POST" action="{{ url_for('login', next=request.args.get('next')) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="form-group">
+        <label for="username" class="form-label">Username / Campus Email <span class="req">*</span></label>
+        <input 
+          type="text" 
+          id="username" 
+          name="username" 
+          class="form-control" 
+          placeholder="e.g. guard@campus.local" 
+          value="{{ username or '' }}"
+          required 
+          autofocus
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="password" class="form-label">Password <span class="req">*</span></label>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          class="form-control" 
+          placeholder="••••••••••••" 
+          required
+        >
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 0.5rem; padding: 0.75rem;">
+        Log In to GateLedger
+      </button>
+    </form>
+
+    <!-- Development / Viva Demonstration Credentials Helper -->
+    <div class="auth-demo-box">
+      <strong>Quick Demo Credentials:</strong>
+      <div class="demo-btn-group">
+        <button type="button" id="fill-demo-guard" class="btn btn-secondary btn-sm" style="flex: 1;">
+          Guard (Guard@123)
+        </button>
+        <button type="button" id="fill-demo-admin" class="btn btn-secondary btn-sm" style="flex: 1;">
+          Admin (Admin@123)
+        </button>
+      </div>
+      <p class="form-help" style="margin-top: 0.45rem;">
+        Click either button to autofill local credentials for evaluation and viva demonstration.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard — Campus Security Overview{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Campus Security Dashboard</h1>
+    <p class="page-subtitle">Real-time gate activity and cryptographic ledger verification</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('new_event') }}" class="btn btn-primary">
+      + Log Vehicle Entry / Exit
+    </a>
+    <a href="{{ url_for('blockchain_explorer') }}" class="btn btn-secondary">
+      Inspect Blockchain
+    </a>
+  </div>
+</div>
+
+<!-- Live Metric Cards -->
+<div class="metrics-grid">
+  <div class="metric-card accent-emerald">
+    <span class="metric-label">Bikes Inside Campus</span>
+    <span class="metric-value">{{ stats.inside_count }}</span>
+    <span class="metric-hint">Currently active on-campus</span>
+  </div>
+
+  <div class="metric-card accent-teal">
+    <span class="metric-label">Entries Today</span>
+    <span class="metric-value">{{ stats.entries_today }}</span>
+    <span class="metric-hint">Campus calendar day</span>
+  </div>
+
+  <div class="metric-card accent-amber">
+    <span class="metric-label">Exits Today</span>
+    <span class="metric-value">{{ stats.exits_today }}</span>
+    <span class="metric-hint">Campus calendar day</span>
+  </div>
+
+  <div class="metric-card accent-navy">
+    <span class="metric-label">Registered Vehicles</span>
+    <span class="metric-value">{{ stats.total_vehicles }}</span>
+    <span class="metric-hint">Catalog database</span>
+  </div>
+
+  <div class="metric-card accent-teal">
+    <span class="metric-label">Blockchain Blocks</span>
+    <span class="metric-value">{{ stats.total_blocks }}</span>
+    <span class="metric-hint">SHA-256 Mined Blocks</span>
+  </div>
+
+  <div class="metric-card" style="border-left: 4px solid {% if stats.chain_valid %}var(--emerald-600){% else %}var(--rose-600){% endif %};">
+    <span class="metric-label">Ledger Integrity</span>
+    <div style="margin: 0.4rem 0;">
+      {% if stats.chain_valid %}
+        <span class="badge badge-valid">SECURE &amp; VERIFIED</span>
+      {% else %}
+        <span class="badge badge-invalid">TAMPER DETECTED</span>
+      {% endif %}
+    </div>
+    <span class="metric-hint" title="{{ stats.chain_head_hash }}">
+      Head: {{ stats.chain_head_hash | short_hash(14) }}
+    </span>
+  </div>
+</div>
+
+<!-- Recent Gate Activity Table -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Recent Gate Activity</h2>
+    <div style="display: flex; gap: 0.5rem;">
+      <a href="{{ url_for('event_records') }}" class="btn btn-secondary btn-sm">
+        View All Records
+      </a>
+      <a href="{{ url_for('export_csv') }}" class="btn btn-secondary btn-sm">
+        Export CSV
+      </a>
+    </div>
+  </div>
+  <div class="card-body" style="padding: 0;">
+    {% if recent_events %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Vehicle Reg</th>
+              <th>Rider Name</th>
+              <th>Category</th>
+              <th>Gate</th>
+              <th>Event</th>
+              <th>Timestamp</th>
+              <th>Security Guard</th>
+              <th>Block Index &amp; Hash</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ev in recent_events %}
+              <tr>
+                <td><strong>#{{ ev.id }}</strong></td>
+                <td>
+                  <a href="{{ url_for('vehicle_detail_view', vehicle_id=ev.vehicle_id) }}" style="font-weight: 700; color: var(--navy-900); text-decoration: none;">
+                    {{ ev.display_registration }}
+                  </a>
+                </td>
+                <td>{{ ev.rider_name_snapshot }}</td>
+                <td><span class="badge badge-category">{{ ev.owner_type_snapshot }}</span></td>
+                <td>{{ ev.gate_name }}</td>
+                <td>
+                  {% if ev.event_type == 'ENTRY' %}
+                    <span class="badge badge-entry">ENTRY</span>
+                  {% else %}
+                    <span class="badge badge-exit">EXIT</span>
+                  {% endif %}
+                </td>
+                <td>{{ ev.event_timestamp_utc | format_dt }}</td>
+                <td>{{ ev.operator_username }}</td>
+                <td>
+                  {% if ev.block_index is not none %}
+                    <a href="{{ url_for('blockchain_explorer') }}" class="code-hash" title="Block #{{ ev.block_index }} - {{ ev.block_hash }}">
+                      #{{ ev.block_index }} &bull; {{ ev.block_hash | short_hash(10) }}
+                    </a>
+                  {% else %}
+                    <span style="color: var(--slate-400); font-size: 0.8rem;">Unmined</span>
+                  {% endif %}
+                </td>
+                <td style="text-align: right;">
+                  <a href="{{ url_for('event_detail', event_id=ev.id) }}" class="btn btn-secondary btn-sm">
+                    View
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state-icon">📋</span>
+        <h3 class="empty-state-title">No Gate Events Logged Yet</h3>
+        <p class="form-help">Vehicle entries and exits logged by guards will appear here and be committed to the blockchain.</p>
+        <div style="margin-top: 1rem;">
+          <a href="{{ url_for('new_event') }}" class="btn btn-primary">
+            + Log the First Event
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

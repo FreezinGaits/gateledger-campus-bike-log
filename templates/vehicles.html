@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Registered Campus Vehicles — GateLedger{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Registered Campus Vehicles</h1>
+    <p class="page-subtitle">Catalog of two-wheelers, current on-campus status, and passage history</p>
+  </div>
+  <div class="page-actions">
+    <a href="{{ url_for('vehicle_new') }}" class="btn btn-primary">
+      + Register New Vehicle
+    </a>
+  </div>
+</div>
+
+<!-- Search & Filters -->
+<div class="card" style="margin-bottom: 1.25rem;">
+  <div class="card-body">
+    <form method="GET" action="{{ url_for('vehicle_list') }}">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; align-items: end;">
+        <div>
+          <label class="form-label" style="font-size: 0.78rem;">Search Reg / Owner / Campus ID</label>
+          <input 
+            type="text" 
+            name="search" 
+            class="form-control" 
+            placeholder="e.g. PB10 or Rohan" 
+            value="{{ search or '' }}"
+          >
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem;">Current Campus Status</label>
+          <select name="status" class="form-control">
+            <option value="">All Statuses</option>
+            <option value="INSIDE" {% if status_filter == 'INSIDE' %}selected{% endif %}>INSIDE Campus</option>
+            <option value="OUTSIDE" {% if status_filter == 'OUTSIDE' %}selected{% endif %}>OUTSIDE Campus</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="form-label" style="font-size: 0.78rem;">Category</label>
+          <select name="category" class="form-control">
+            <option value="">All Categories</option>
+            <option value="Student" {% if category == 'Student' %}selected{% endif %}>Student</option>
+            <option value="Staff" {% if category == 'Staff' %}selected{% endif %}>Staff</option>
+            <option value="Visitor" {% if category == 'Visitor' %}selected{% endif %}>Visitor</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 0.4rem;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Filter</button>
+          <a href="{{ url_for('vehicle_list') }}" class="btn btn-secondary">Reset</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Vehicle Catalog Table -->
+<div class="card">
+  <div class="card-header">
+    <h2 class="card-title">Vehicles Catalog ({{ vehicles | length }} registered)</h2>
+  </div>
+
+  <div class="card-body" style="padding: 0;">
+    {% if vehicles %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Reg Number</th>
+              <th>Owner Name</th>
+              <th>Category</th>
+              <th>Campus ID</th>
+              <th>Phone</th>
+              <th>Make &amp; Model</th>
+              <th>Current Status</th>
+              <th>Total Events</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in vehicles %}
+              <tr>
+                <td>
+                  <strong style="font-family: var(--font-mono); font-size: 0.95rem;">
+                    {{ v.display_registration }}
+                  </strong>
+                </td>
+                <td>{{ v.owner_name }}</td>
+                <td><span class="badge badge-category">{{ v.owner_type }}</span></td>
+                <td>{{ v.campus_id or '—' }}</td>
+                <td>{{ v.phone or '—' }}</td>
+                <td>{{ v.make_model or '—' }}</td>
+                <td>
+                  {% if v.current_status == 'INSIDE' %}
+                    <span class="badge badge-inside">● INSIDE</span>
+                  {% else %}
+                    <span class="badge badge-outside">○ OUTSIDE</span>
+                  {% endif %}
+                </td>
+                <td><strong>{{ v.total_events }}</strong></td>
+                <td style="text-align: right;">
+                  <a href="{{ url_for('vehicle_detail_view', vehicle_id=v.id) }}" class="btn btn-secondary btn-sm">
+                    Profile &amp; History
+                  </a>
+                  <a href="{{ url_for('new_event', reg=v.registration_number) }}" class="btn btn-primary btn-sm" style="margin-left: 0.25rem;">
+                    Log Passage
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <span class="empty-state-icon">🏍️</span>
+        <h3 class="empty-state-title">No Vehicles Found</h3>
+        <p class="form-help">No vehicles matched your search filter, or none have been registered yet.</p>
+        <div style="margin-top: 1rem;">
+          <a href="{{ url_for('vehicle_new') }}" class="btn btn-primary">
+            + Register a Vehicle
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
